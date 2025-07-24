@@ -96,7 +96,14 @@ def run_git_log_L(function_name: str, file_path: Path, repo_root: Path) -> str:
         "git", "log", "-L", f":{function_name}:{rel_path}", "--patch"
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=repo_root)
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=repo_root
+        )
         return result.stdout
     except Exception as e:
         print(f"[!] git log -L failed: {e}")
@@ -104,42 +111,57 @@ def run_git_log_L(function_name: str, file_path: Path, repo_root: Path) -> str:
 
 def parse_git_log(log_output: str) -> List[Dict]:
     commits = []
-    current = {}
     lines = log_output.splitlines()
     i = 0
+
     while i < len(lines):
         line = lines[i]
         if line.startswith("commit "):
-            if current:
-                commits.append(current)
-                current = {}
+            current = {"diff": "", "message": ""}
             current["hash"] = line.split()[1]
-        elif line.startswith("Author: "):
-            author = line[len("Author: "):].strip()
-            if "<" in author:
-                name, email = author.split("<")
-                current["author"] = name.strip()
-                current["email"] = email.strip("> ")
-        elif line.startswith("Date: "):
-            date_str = line[len("Date: "):].strip()
-            current["date"] = datetime.strptime(date_str, "%a %b %d %H:%M:%S %Y %z").isoformat()
-        elif line.strip() == "":
             i += 1
-            break  # skip empty line after header
-        i += 1
 
-    # diff
-    diff_lines = []
-    while i < len(lines):
-        if lines[i].startswith("commit "):
-            continue  # skip, already handled above
-        diff_lines.append(lines[i])
-        i += 1
-    current["diff"] = "\n".join(diff_lines)
-    commits.append(current)
-    return [c for c in commits if "hash" in c]
+            # Parse metadata
+            while i < len(lines):
+                line = lines[i]
+                if line.startswith("Author: "):
+                    author = line[len("Author: "):].strip()
+                    if "<" in author:
+                        name, email = author.split("<")
+                        current["author"] = name.strip()
+                        current["email"] = email.strip("> ")
+                elif line.startswith("Date: "):
+                    date_str = line[len("Date: "):].strip()
+                    current["date"] = datetime.strptime(date_str, "%a %b %d %H:%M:%S %Y %z").isoformat()
+                elif line.strip() == "":
+                    i += 1
+                    break
+                i += 1
+
+            # Parse commit message (indented lines)
+            message_lines = []
+            while i < len(lines) and lines[i].startswith("    "):
+                message_lines.append(lines[i].strip())
+                i += 1
+            current["message"] = " ".join(message_lines)
+
+            # Parse diff (until next commit or end)
+            diff_lines = []
+            while i < len(lines) and not lines[i].startswith("commit "):
+                diff_lines.append(lines[i])
+                i += 1
+            current["diff"] = "\n".join(diff_lines).strip()
+
+            commits.append(current)
+        else:
+            i += 1
+
+    return commits
 
 def analyze_function_commits(file_path: Path, function_name: str, repo_root: Path) -> Optional[Dict]:
+    if not (repo_root / ".git").exists():
+        raise ValueError(f"{repo_root} is not a valid Git repository")
+
     log_output = run_git_log_L(function_name, file_path, repo_root)
     if not log_output:
         return None
