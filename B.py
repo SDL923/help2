@@ -96,8 +96,9 @@ def classify_commit_type(diff: str, message: str) -> str:
 
 def run_git_log_L(function_name: str, file_path: Path, repo_root: Path) -> str:
     rel_path = file_path.relative_to(repo_root)
+    pattern = f"/^def {function_name}\\b/"
     cmd = [
-        "git", "log", "-L", f":{function_name}:{rel_path}", "--patch"
+        "git", "log", "-L", f"{pattern}:{rel_path}", "--patch"
     ]
     try:
         result = subprocess.run(
@@ -162,10 +163,6 @@ def parse_git_log(log_output: str) -> List[Dict]:
 
     return commits
 
-def filter_commits_by_exact_function(commits: List[Dict], function_name: str) -> List[Dict]:
-    pattern = re.compile(rf"^[-+]def {re.escape(function_name)}\\b")
-    return [c for c in commits if pattern.search(c.get("diff", ""))]
-
 def analyze_function_commits(file_path: Path, function_name: str, repo_root: Path) -> Optional[Dict]:
     if not (repo_root / ".git").exists():
         raise ValueError(f"{repo_root} is not a valid Git repository")
@@ -175,7 +172,6 @@ def analyze_function_commits(file_path: Path, function_name: str, repo_root: Pat
         return None
 
     commits_raw = parse_git_log(log_output)
-    commits_raw = filter_commits_by_exact_function(commits_raw, function_name)
     if not commits_raw:
         return None
 
