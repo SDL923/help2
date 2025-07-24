@@ -1,0 +1,2 @@
+cd cloned_repo/your_project
+git log -L '/^def extract_features\b/':src/utils/feature.py --patch
