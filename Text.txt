@@ -9,3 +9,25 @@ cmd = ["git", "log", "-L", f"{pattern}:{rel_path}", "--patch"]
 
 
 git log -L '/^def foo\s*\([^)]*\)\s*:/' src/path/to/file.py
+
+
+
+
+
+import re
+
+def is_exact_function_matched(diff: str, function_name: str) -> bool:
+    """
+    주어진 diff 내용에 정확히 해당 함수 정의가 변경된 커밋인지 판별
+    (+ 또는 -로 시작하는 def 줄에서 정확히 함수 이름이 일치하는 경우만 True)
+    """
+    pattern = re.compile(rf"^[-+]def {re.escape(function_name)}\b")
+    for line in diff.splitlines():
+        if pattern.match(line.strip()):
+            return True
+    return False
+
+
+
+
+commits = [c for c in commits_raw if is_exact_function_matched(c["diff"], function_name)]
