@@ -1,2 +1,11 @@
 cd cloned_repo/your_project
 git log -L '/^def extract_features\b/':src/utils/feature.py --patch
+
+
+
+pattern = f"/^def {function_name}\\s*\\([^)]*\\)\\s*:/"
+cmd = ["git", "log", "-L", f"{pattern}:{rel_path}", "--patch"]
+
+
+
+git log -L '/^def foo\s*\([^)]*\)\s*:/' src/path/to/file.py
