@@ -10,7 +10,7 @@ def clone_repo(repo_url: str, dest_dir: Path, branch: str = None)->Path:
     
     if repo_path.exists():
         logger.info("Repository already exists at %s", repo_path)
-        return repo_path
+        return repo_name
     logger.info("Cloning %s into %s ...", repo_url, repo_path)
     try:
         if branch:
@@ -18,7 +18,7 @@ def clone_repo(repo_url: str, dest_dir: Path, branch: str = None)->Path:
         else:
             git.Repo.clone_from(repo_url, repo_path) 
         logger.info("Clone complete.")
-        return repo_path
+        return repo_name
     except Exception as e:
         print(f"Failed to clone: %s", e)
         return None

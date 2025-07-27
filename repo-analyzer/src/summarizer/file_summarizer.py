@@ -96,11 +96,45 @@ def summarize_files(repo_path: Path):
         for file in files:
             path = Path(root) / file
             if should_summarize(path):
-                print(f"[+] Summarizing: {path.relative_to(repo_path)}")
+                rel_path = path.relative_to(repo_path)
+                safe_name = str(rel_path).replace("/", "__").replace("\\", "__")
+                save_path = SUMMARY_DIR / (safe_name + ".json")
+
+                if save_path.exists():
+                    print(f"[-] Skipping (already summarized): {rel_path}")
+                    continue
+
+                print(f"[+] Summarizing: {rel_path}")
                 summary = summarize_file_with_llm(path)
                 if summary:
-                    rel_path = path.relative_to(repo_path)
-                    safe_name = str(rel_path).replace("/", "__").replace("\\", "__")
-                    save_path = SUMMARY_DIR / (safe_name + ".json")
                     with open(save_path, "w", encoding="utf-8") as f:
                         json.dump(summary, f, indent=2, ensure_ascii=False)
+
+# def summarize_files(repo_path: Path):
+#     print(f"[*] Summarizing Python files in: {repo_path}")
+#     for root, _, files in os.walk(repo_path):
+#         for file in files:
+#             path = Path(root) / file
+#             if should_summarize(path):
+#                 print(f"[+] Summarizing: {path.relative_to(repo_path)}")
+#                 summary = summarize_file_with_llm(path)
+#                 if summary:
+#                     rel_path = path.relative_to(repo_path)
+#                     safe_name = str(rel_path).replace("/", "__").replace("\\", "__")
+#                     save_path = SUMMARY_DIR / (safe_name + ".json")
+#                     with open(save_path, "w", encoding="utf-8") as f:
+#                         json.dump(summary, f, indent=2, ensure_ascii=False)
+
+def load_summary(file_path: Path) -> dict:
+    """
+    주어진 파일 경로에 해당하는 요약 JSON을 로드합니다.
+    예: file_path = Path("whereami/utils.py") -> whereami__utils.py.json
+    """
+    rel_path = str(file_path).replace("/", "__").replace("\\", "__") + ".json"
+    summary_path = SUMMARY_DIR / rel_path
+
+    if not summary_path.exists():
+        raise FileNotFoundError(f"No summary found for file: {file_path}")
+    
+    with open(summary_path, "r", encoding="utf-8") as f:
+        return json.load(f)
